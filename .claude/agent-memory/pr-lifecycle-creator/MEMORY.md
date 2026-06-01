@@ -1,0 +1,2 @@
+- [grocery-list-tracker project conventions](project_conventions.md) — commit style, changelog format, SDLC artifacts, test stack, base branch for this repo
+- [Push branch before creating PR](feedback_push_before_pr.md) — always push to origin before calling GitHub MCP create_pull_request or it fails with 422

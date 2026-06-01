@@ -1,52 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-  Trash2, Pencil, Check, X, Plus, ShoppingCart, AlertTriangle, Clock,
-} from 'lucide-react';
+import { Plus, ShoppingCart } from 'lucide-react';
 import Header from '../components/Header';
-
-interface GroceryItem {
-  id: string;
-  name: string;
-  quantity: string;
-  expiryDate: string;
-}
+import type { GroceryItem } from '../types';
+import * as groceryStorage from '../services/groceryStorage';
+import GrocerySection from './grocery/GrocerySection';
 
 const STORAGE_KEY = 'grocery-list';
-
-function daysUntil(dateStr: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const expiry = new Date(dateStr + 'T00:00:00');
-  expiry.setHours(0, 0, 0, 0);
-  return Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function expiryStatus(dateStr: string): 'expired' | 'soon' | 'ok' {
-  const d = daysUntil(dateStr);
-  if (d < 0) return 'expired';
-  if (d <= 3) return 'soon';
-  return 'ok';
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-  });
-}
-
-const rowBg: Record<'expired' | 'soon' | 'ok', string> = {
-  expired: 'bg-red-50 border-l-4 border-red-400',
-  soon:    'bg-amber-50 border-l-4 border-amber-400',
-  ok:      'bg-white border-l-4 border-transparent',
-};
-
-function StatusBadge({ dateStr }: { dateStr: string }) {
-  const d = daysUntil(dateStr);
-  if (d < 0)  return <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full"><X className="w-3 h-3" />Expired</span>;
-  if (d === 0) return <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full"><AlertTriangle className="w-3 h-3" />Expires today</span>;
-  if (d <= 3)  return <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full"><Clock className="w-3 h-3" />{d}d left</span>;
-  return null;
-}
 
 const inputCls = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent';
 const inlineCls = 'w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500';
@@ -61,11 +20,26 @@ export default function GroceryListPage() {
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: '', quantity: '', expiryDate: '' });
+  const [boughtIds, setBoughtIds] = useState<Set<string>>(() => groceryStorage.loadBoughtIds());
   const nameRef = useRef<HTMLInputElement>(null);
+  const isMounted = useRef(false);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch (error) {
+      console.error(error);
+    }
   }, [items]);
+
+  useEffect(() => {
+    // skip first fire — initial state is loaded from storage, not saved back
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
+    groceryStorage.saveBoughtIds(boughtIds);
+  }, [boughtIds]);
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -83,6 +57,11 @@ export default function GroceryListPage() {
 
   function handleDelete(id: string) {
     setItems(prev => prev.filter(i => i.id !== id));
+    setBoughtIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     if (editingId === id) setEditingId(null);
   }
 
@@ -101,7 +80,34 @@ export default function GroceryListPage() {
     setEditingId(null);
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  function handleToggleBought(id: string) {
+    setBoughtIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  const toBuyItems = items
+    .filter(i => !boughtIds.has(i.id))
+    .map(i => ({ ...i, bought: false as const }));
+
+  const boughtItems = items
+    .filter(i => boughtIds.has(i.id))
+    .map(i => ({ ...i, bought: true as const }));
+
+  const sharedSectionProps = {
+    editingId,
+    editForm,
+    inlineCls,
+    onEditChange: (f: { name: string; quantity: string; expiryDate: string }) => setEditForm(f),
+    onSave: saveEdit,
+    onCancel: () => setEditingId(null),
+  };
 
   return (
     <>
@@ -166,89 +172,34 @@ export default function GroceryListPage() {
           </form>
 
           {/* Legend */}
-          <div className="flex items-center gap-4 mb-3 text-xs text-gray-500">
+          <div className="flex items-center gap-4 mb-4 text-xs text-gray-500">
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-400 inline-block" />Expired</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-400 inline-block" />Expiring within 3 days</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-400 inline-block" />Fresh</span>
           </div>
 
-          {/* List */}
-          {items.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
-              <ShoppingCart className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 text-sm">Your grocery list is empty.</p>
-              <p className="text-gray-400 text-xs mt-1">Add an item above to get started.</p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50 text-left">
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Item</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Quantity</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Expiry Date</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide sr-only">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {items.map(item => {
-                      const status = expiryStatus(item.expiryDate);
-                      return (
-                        <tr key={item.id} className={`${rowBg[status]} transition-colors`}>
-                          {editingId === item.id ? (
-                            <>
-                              <td className="px-4 py-2">
-                                <input type="text" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className={inlineCls} />
-                              </td>
-                              <td className="px-4 py-2">
-                                <input type="text" value={editForm.quantity} onChange={e => setEditForm(f => ({ ...f, quantity: e.target.value }))} className={inlineCls} />
-                              </td>
-                              <td className="px-4 py-2">
-                                <input type="date" value={editForm.expiryDate} onChange={e => setEditForm(f => ({ ...f, expiryDate: e.target.value }))} className={inlineCls} />
-                              </td>
-                              <td className="px-4 py-2" />
-                              <td className="px-4 py-2">
-                                <div className="flex items-center gap-1">
-                                  <button onClick={() => saveEdit(item.id)} title="Save" className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 transition-colors">
-                                    <Check className="w-4 h-4" />
-                                  </button>
-                                  <button onClick={() => setEditingId(null)} title="Cancel" className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              <td className="px-4 py-3 font-medium text-gray-900">{item.name}</td>
-                              <td className="px-4 py-3 text-gray-600">{item.quantity}</td>
-                              <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDate(item.expiryDate)}</td>
-                              <td className="px-4 py-3"><StatusBadge dateStr={item.expiryDate} /></td>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-1">
-                                  <button onClick={() => startEdit(item)} title="Edit" className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors">
-                                    <Pencil className="w-4 h-4" />
-                                  </button>
-                                  <button onClick={() => handleDelete(item.id)} title="Delete" className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-xs text-gray-500">
-                {items.length} {items.length === 1 ? 'item' : 'items'} · saved to browser storage
-              </div>
-            </div>
-          )}
+          {/* Two-section layout */}
+          <GrocerySection
+            title="To Buy"
+            items={toBuyItems}
+            emptyMessage="No items yet. Add one above."
+            onToggle={handleToggleBought}
+            onEdit={startEdit}
+            onDelete={handleDelete}
+            {...sharedSectionProps}
+          />
+
+          <div className="mt-6">
+            <GrocerySection
+              title="Bought"
+              items={boughtItems}
+              emptyMessage="No bought items yet."
+              onToggle={handleToggleBought}
+              onEdit={startEdit}
+              onDelete={handleDelete}
+              {...sharedSectionProps}
+            />
+          </div>
         </div>
       </main>
     </>

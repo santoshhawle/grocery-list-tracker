@@ -1,0 +1,2 @@
+- [KAN-3 Architecture Decisions](project_kan3_architecture.md) — bought state in separate localStorage key; derive sections via filter; groceryStorage service pattern
+- [Client Technology Stack](project_stack.md) — React 18, Vite, Tailwind, Vitest, no global state manager; wbt_* localStorage convention

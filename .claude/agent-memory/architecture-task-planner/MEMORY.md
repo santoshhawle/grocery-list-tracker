@@ -1,0 +1,1 @@
+- [KAN-3 Implementation Plan — Key Decisions](project_kan3.md) — dependency order, resolved open questions, and 12-task breakdown for Mark Grocery Item as Bought

@@ -1,0 +1,1 @@
+- [KAN-3 Grocery Feature Context](project_kan3_grocery.md) — KAN-3 bought-toggle scope, key decisions, and medium-priority review findings

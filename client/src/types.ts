@@ -1,5 +1,12 @@
 // ─── Domain types ────────────────────────────────────────────────────────────
 
+export interface GroceryItem {
+  id: string;
+  name: string;
+  quantity: string;
+  expiryDate: string;
+}
+
 export interface User {
   id: number;
   email: string;

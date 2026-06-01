@@ -1,0 +1,2 @@
+- [KAN-3 Design Review Context](project_kan3_context.md) — Key findings, agreed decisions (D-01 to D-05), and table-vs-card layout risk for KAN-3
+- [Recurring Architecture Risks](project_recurring_risks.md) — 5 recurring risk patterns to check on every future review in this project
