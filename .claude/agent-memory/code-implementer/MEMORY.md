@@ -1,0 +1,1 @@
+- [KAN-3 Grocery Bought Feature](project_grocery_feature.md) — file layout, localStorage key, pre-existing test failures, useRef mount guard pattern

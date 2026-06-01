@@ -1,0 +1,2 @@
+- [KAN-3 Test Suite State](project_kan3_test_state.md) — Orphaned test files, pass counts, and TypeScript error baseline for client/
+- [Recurring Issues](project_recurring_issues.md) — Pre-existing test failures, NFR-06 violations, Vite deprecation warning, docs conventions

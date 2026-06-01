@@ -1,0 +1,1 @@
+- [KAN-3 Grocery Bought Toggle](project_kan3_grocery.md) — ordering, persistence, UX defaults agreed during KAN-3 elicitation (2026-06-01)
