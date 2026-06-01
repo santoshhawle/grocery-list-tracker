@@ -32,7 +32,7 @@ export default function RegisterPage() {
         teamName: form.teamName.trim() || undefined,
       });
       login(token, user);
-      navigate('/dashboard');
+      navigate('/grocery');
     } catch (err: unknown) {
       setError((err as Error).message ?? 'Registration failed');
     } finally {
