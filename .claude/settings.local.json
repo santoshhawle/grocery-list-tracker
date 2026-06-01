@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__secure-api__getTeamworkGraphContext"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require('fs');const d=new Date().toISOString();const line=`[${d}] Agent tool completed\\n`;fs.mkdirSync('.claude',{recursive:true});fs.appendFileSync('.claude/pipeline.log',line);\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require('fs');const docs=['docs/requirements.md','docs/architecture.md','docs/design-review.md','docs/impl-plan.md','docs/review.md','docs/verification-report.md'];const names=['Requirements','Architecture','Design Review','Impl Plan','Code Review','Verification'];let last=0;docs.forEach((f,i)=>{if(fs.existsSync(f))last=i+1;});const steps=['Capture Requirements','Design Architecture','Review Design','Plan Implementation','Implement Code','Review Code','Verify','Create Pull Request'];const next=steps[last]||'All steps complete';console.log(`\\n[SDLC] Completed steps: ${last}/8 | Next: Step ${last+1} — ${next}`);\""
+          }
+        ]
+      }
+    ]
+  }
+}

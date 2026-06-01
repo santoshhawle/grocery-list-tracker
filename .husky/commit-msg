@@ -1,0 +1,7 @@
+#!/bin/sh
+# commit-msg — validates commit message format against SDLC convention
+# Format: <type>(<scope>): <short description>
+# Types:  feat | fix | docs | test | refactor | chore
+# Scopes: requirements | architecture | design-review | impl-plan |
+#         implementation | tests | pr | ci | deps | config | auth | api | client | server
+npx --no -- commitlint --edit "$1"

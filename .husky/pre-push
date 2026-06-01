@@ -1,0 +1,25 @@
+#!/bin/sh
+# pre-push — safety gate before remote push
+# Checks: (1) no direct push to main/master
+#         (2) full client test suite passes
+
+BRANCH=$(git branch --show-current)
+
+# ── 1. Block direct pushes to main ───────────────────────────────────────────
+if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
+  echo ""
+  echo "ERROR: Direct push to '$BRANCH' is not allowed."
+  echo "Create a feature branch and open a Pull Request instead."
+  echo "  git checkout -b feature/<story-id>-<short-description>"
+  exit 1
+fi
+
+# ── 2. Run full client test suite ────────────────────────────────────────────
+echo "--- Pre-push: running test suite (branch: $BRANCH) ---"
+(cd client && npm test) || {
+  echo ""
+  echo "ERROR: Tests failed. Fix failing tests before pushing."
+  exit 1
+}
+
+echo "--- Pre-push checks passed ---"

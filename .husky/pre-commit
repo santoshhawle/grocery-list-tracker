@@ -1,0 +1,58 @@
+#!/bin/sh
+# pre-commit — code quality gate enforcing SDLC standards
+# Checks: (1) no console.log in production code
+#         (2) no hardcoded secrets
+#         (3) TypeScript type checks pass (client + server)
+
+echo "--- Pre-commit checks ---"
+
+# ── 1. Block console.log in staged production TypeScript files ────────────────
+# Use '|| true' so grep exit code 1 (no matches) does not abort the script
+STAGED=$(git diff --cached --name-only --diff-filter=ACM \
+  | grep -E "^(client|server)/src/.*\.(ts|tsx)$" \
+  | grep -v "__tests__" \
+  | grep -v "\.test\." \
+  | grep -v "\.spec\." || true)
+
+if [ -n "$STAGED" ]; then
+  CONSOLE_FOUND=0
+  for FILE in $STAGED; do
+    if grep -q "console\.log" "$FILE" 2>/dev/null; then
+      echo "  [FAIL] console.log found in: $FILE"
+      CONSOLE_FOUND=1
+    fi
+  done
+  if [ "$CONSOLE_FOUND" -eq 1 ]; then
+    echo ""
+    echo "ERROR: Remove console.log statements from production files before committing."
+    exit 1
+  fi
+fi
+
+# ── 2. Block hardcoded secrets in staged diff ─────────────────────────────────
+# Use portable character class [[:space:]] instead of \s
+SECRETS=$(git diff --cached \
+  | grep -iE "(password|secret|apikey|api_key)[[:space:]]*=[[:space:]]*['\"][^'\"]{8,}" \
+  || true)
+if [ -n "$SECRETS" ]; then
+  echo ""
+  echo "ERROR: Potential hardcoded secret detected in staged changes."
+  echo "Use environment variables (process.env.* / import.meta.env.*) instead."
+  exit 1
+fi
+
+# ── 3. TypeScript type check — client ────────────────────────────────────────
+echo "TypeScript check (client)..."
+(cd client && npx tsc --noEmit) || {
+  echo "ERROR: TypeScript errors in client. Fix before committing."
+  exit 1
+}
+
+# ── 4. TypeScript type check — server ────────────────────────────────────────
+echo "TypeScript check (server)..."
+(cd server && npx tsc --noEmit) || {
+  echo "ERROR: TypeScript errors in server. Fix before committing."
+  exit 1
+}
+
+echo "--- Pre-commit checks passed ---"
